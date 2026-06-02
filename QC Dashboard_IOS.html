@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>Weekly FPY Quality Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Aptos:wght@400;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Aptos","Calibri","Segoe UI",sans-serif;background:#f0f0ee;color:#1a1a19;padding:16px}
+/* ── Header ── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 0 10px;border-bottom:1px solid #d8d7cf;margin-bottom:16px}
+.hdr-title{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.hdr-sub{font-size:12px;color:#73726c;margin-top:2px}
+.yr-tabs{display:flex;gap:6px}
+.yr-tab{padding:5px 15px;font-size:12px;border:1px solid #c0bfb7;border-radius:20px;cursor:pointer;background:#fff;color:#73726c;font-family:inherit;transition:all .15s}
+.yr-tab:hover{background:#e8e7e0;color:#1a1a19}
+.yr-tab.active{background:#1a1a19;color:#fff;border-color:#1a1a19;font-weight:600}
+/* ── KPI cards ── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #e0dfd7;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;top:0;left:0;width:4px;height:100%;border-radius:12px 0 0 12px}
+.kpi.green::before{background:#1D9E75}
+.kpi.red::before{background:#D85A30}
+.kpi.amber::before{background:#EF9F27}
+.kpi.blue::before{background:#378ADD}
+.kpi-lbl{font-size:11px;color:#888780;margin-bottom:6px;font-weight:500}
+.kpi-val{font-size:24px;font-weight:700;line-height:1}
+.kpi-delta{font-size:11px;margin-top:5px;color:#73726c}
+.c-green{color:#0F6E56}.c-red{color:#993C1D}.c-amber{color:#854F0B}.c-blue{color:#185FA5}
+/* ── Cards ── */
+.card{background:#fff;border:1px solid #e0dfd7;border-radius:12px;padding:14px 16px}
+.sec-title{font-size:10px;font-weight:700;color:#999891;margin-bottom:12px;text-transform:uppercase;letter-spacing:.08em}
+/* ── Layout ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.layout-main{display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:12px}
+/* ── Trend chart scroll ── */
+.trend-wrap{overflow-x:auto;overflow-y:hidden;width:100%;cursor:grab}
+.trend-wrap:active{cursor:grabbing}
+.trend-wrap::-webkit-scrollbar{height:5px}
+.trend-wrap::-webkit-scrollbar-track{background:#f0f0ee;border-radius:3px}
+.trend-wrap::-webkit-scrollbar-thumb{background:#c8c7bf;border-radius:3px}
+/* ── Station bars ── */
+.st-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.st-name{font-size:11px;color:#5F5E5A;width:90px;flex-shrink:0;font-weight:500}
+.st-track{flex:1;height:10px;background:#eeede6;border-radius:5px;overflow:hidden;position:relative}
+.st-fill{height:100%;border-radius:5px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.st-val{font-size:11px;font-weight:700;width:44px;text-align:right;flex-shrink:0}
+/* ── FPY by Process ── */
+.proc-section{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px;padding-left:2px}
+.proc-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;padding:6px 10px;border-radius:8px;background:#fafaf8;border:1px solid #eae9e1;transition:background .15s}
+.proc-row:hover{background:#f2f1ea}
+.proc-row.low{border-color:#D85A30;background:#fff7f5}
+.proc-name{font-size:11px;color:#5F5E5A;width:82px;flex-shrink:0;font-weight:500}
+.low-tag{font-size:9px;background:#D85A30;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px;font-weight:700}
+.proc-track{flex:1;height:8px;background:#e4e3db;border-radius:4px;overflow:hidden}
+.proc-fill{height:100%;border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.proc-val{font-size:12px;font-weight:700;width:48px;text-align:right;flex-shrink:0}
+.proc-delta{font-size:10px;font-weight:700;width:42px;text-align:right;flex-shrink:0}
+/* ── Legend ── */
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:11px;color:#73726c;align-items:center}
+.legend-item{display:flex;align-items:center;gap:5px}
+.ldot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.lline{width:18px;height:2px;flex-shrink:0;border-radius:2px}
+.lbox{width:12px;height:12px;border-radius:2px;border:1px solid #EF9F27;background:#faeeda;flex-shrink:0}
+/* ── Retrofit badge ── */
+.retrofit-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;background:#faeeda;color:#854F0B;border-radius:20px;padding:2px 9px;margin-left:8px;font-weight:600;border:1px solid #f0c070;vertical-align:middle}
+/* ── Stat rows (YoY) ── */
+.stat-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0efe8;font-size:11px;color:#73726c}
+.stat-row:last-child{border-bottom:none}
+/* ── Scroll hint ── */
+.scroll-hint{font-size:10px;color:#bbb;text-align:center;margin-top:4px;letter-spacing:.02em}
+/* process selector dropdown */
+.proc-select-wrap{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.proc-select-wrap label{font-size:11px;font-weight:600;color:#73726c;white-space:nowrap}
+.proc-select{appearance:none;-webkit-appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2373726c'/%3E%3C/svg%3E") no-repeat right 10px center;background-size:10px;border:1px solid #d0cfc7;border-radius:8px;padding:6px 32px 6px 12px;font-size:12px;font-family:inherit;color:#1a1a19;cursor:pointer;min-width:180px;transition:border-color .15s}
+.proc-select:hover{border-color:#888780}
+.proc-select:focus{outline:none;border-color:#378ADD;box-shadow:0 0 0 3px rgba(55,138,221,0.15)}
+.worst-badge{font-size:10px;background:#fff3f0;color:#993C1D;border:1px solid #f5c0b0;border-radius:20px;padding:2px 9px;font-weight:600;white-space:nowrap}
+@media(max-width:900px){.layout-main{grid-template-columns:1fr}}
+@media(max-width:700px){
+  .kpi-row,.grid3{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  .kpi-val{font-size:20px}
+  .proc-select{min-width:140px}
+}
+@media(max-width:480px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kpi-val{font-size:18px}
+  .hdr{flex-direction:column;align-items:flex-start;gap:10px}
+  .yr-tabs{width:100%;justify-content:space-between}
+  .yr-tab{flex:1;text-align:center;padding:6px 4px}
+}
+/* iOS touch */
+canvas{-webkit-tap-highlight-color:transparent;touch-action:none}
+.trend-wrap{-webkit-overflow-scrolling:touch;touch-action:pan-x}
+/* safe area for notch/home bar */
+body{padding-bottom:max(16px,env(safe-area-inset-bottom));
+     padding-left:max(16px,env(safe-area-inset-left));
+     padding-right:max(16px,env(safe-area-inset-right))}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div>
+    <div class="hdr-title">Weekly FPY Quality Dashboard</div>
+    <div class="hdr-sub">Accumulated FPY &nbsp;|&nbsp; 2024 / 2025 / 2026</div>
+  </div>
+  <div class="yr-tabs">
+    <button class="yr-tab active" onclick="setYear('2026')">2026</button>
+    <button class="yr-tab" onclick="setYear('2025')">2025</button>
+    <button class="yr-tab" onclick="setYear('2024')">2024</button>
+    <button class="yr-tab" onclick="setYear('all')">YoY</button>
+  </div>
+</div>
+<div class="kpi-row" id="kpi-row"></div>
+<div id="main-content"></div>
+<script>
+const DATA={
+  "2024":{
+    overall:80.26,pcba:95.95,fg:99.14,
+    stations:{
+      pcba:{"AOI1(Bot)": 99.56, "QCSMT1(Bot)": 99.95, "AOI2(Top)": 99.24, "QCSMT2(Top)": 99.92, "ICT": 90.22, "QCPTH": 95.05},
+      fg:{"FVT": 94.85, "AUTO": 98.35, "AGING": 98.41, "PSA": 99.14}},
+    retrofitWeeks:[],
+    weekly:[
+      {"cw": "CW19", "month": 5, "aoi1": 95.62, "ict": 100.0, "qcpth": 100.0, "fvt": 100.0},
+      {"cw": "CW20", "month": 5, "aoi1": 94.25, "ict": 100.0, "qcpth": 90.79, "fvt": 100.0},
+      {"cw": "CW21", "month": 5, "aoi1": 100.0, "ict": 100.0, "qcpth": 95.9, "fvt": 96.81},
+      {"cw": "CW22", "month": 5, "aoi1": null, "ict": null, "qcpth": 91.43, "fvt": null},
+      {"cw": "CW23", "month": 6, "aoi1": 93.15, "ict": 100.0, "qcpth": 100.0, "fvt": 80.77},
+      {"cw": "CW24", "month": 6, "aoi1": 95.76, "ict": null, "qcpth": 71.67, "fvt": 90.62},
+      {"cw": "CW25", "month": 6, "aoi1": 100.0, "ict": 100.0, "qcpth": 100.0, "fvt": 100.0},
+      {"cw": "CW26", "month": 6, "aoi1": null, "ict": 86.76, "qcpth": 97.06, "fvt": 75.0},
+      {"cw": "CW27", "month": 7, "aoi1": null, "ict": 75.26, "qcpth": 97.33, "fvt": 94.33},
+      {"cw": "CW28", "month": 7, "aoi1": 98.7, "ict": 73.48, "qcpth": 85.48, "fvt": 85.48},
+      {"cw": "CW29", "month": 7, "aoi1": 99.61, "ict": 85.99, "qcpth": 90.84, "fvt": 90.84},
+      {"cw": "CW30", "month": 7, "aoi1": 99.64, "ict": 93.75, "qcpth": 97.27, "fvt": 61.48},
+      {"cw": "CW31", "month": 7, "aoi1": 99.96, "ict": 95.29, "qcpth": 98.1, "fvt": 92.54},
+      {"cw": "CW32", "month": 8, "aoi1": 99.81, "ict": 94.61, "qcpth": 96.44, "fvt": 94.51},
+      {"cw": "CW33", "month": 8, "aoi1": 99.47, "ict": 92.41, "qcpth": 97.87, "fvt": 94.98},
+      {"cw": "CW34", "month": 8, "aoi1": 99.86, "ict": 90.68, "qcpth": 93.72, "fvt": 88.21},
+      {"cw": "CW35", "month": 8, "aoi1": 99.7, "ict": 88.53, "qcpth": 92.09, "fvt": 71.02},
+      {"cw": "CW36", "month": 9, "aoi1": null, "ict": 82.19, "qcpth": 90.62, "fvt": 92.84},
+      {"cw": "CW37", "month": 9, "aoi1": 99.37, "ict": 89.72, "qcpth": 88.53, "fvt": 94.66},
+      {"cw": "CW38", "month": 9, "aoi1": 99.68, "ict": 91.48, "qcpth": 91.57, "fvt": 95.63},
+      {"cw": "CW39", "month": 9, "aoi1": 99.63, "ict": 90.07, "qcpth": 94.13, "fvt": 96.19},
+      {"cw": "CW40", "month": 9, "aoi1": 99.38, "ict": 90.51, "qcpth": 95.21, "fvt": 97.28},
+      {"cw": "CW41", "month": 10, "aoi1": 99.55, "ict": 90.14, "qcpth": 95.21, "fvt": 98.0},
+      {"cw": "CW42", "month": 10, "aoi1": 99.27, "ict": 92.2, "qcpth": 95.71, "fvt": 97.84},
+      {"cw": "CW43", "month": 10, "aoi1": 99.54, "ict": 88.73, "qcpth": 94.75, "fvt": 97.39},
+      {"cw": "CW44", "month": 10, "aoi1": 99.41, "ict": 90.2, "qcpth": 94.58, "fvt": 97.24},
+      {"cw": "CW45", "month": 11, "aoi1": 99.71, "ict": 88.02, "qcpth": 96.03, "fvt": 96.43},
+      {"cw": "CW46", "month": 11, "aoi1": 99.61, "ict": 91.29, "qcpth": 95.32, "fvt": 92.74},
+      {"cw": "CW47", "month": 11, "aoi1": 99.49, "ict": 88.44, "qcpth": 96.1, "fvt": 94.7},
+      {"cw": "CW48", "month": 11, "aoi1": 99.56, "ict": 91.63, "qcpth": 96.77, "fvt": 95.18},
+      {"cw": "CW49", "month": 12, "aoi1": 99.74, "ict": 91.11, "qcpth": 96.58, "fvt": 95.22},
+      {"cw": "CW50", "month": 12, "aoi1": 99.74, "ict": 92.16, "qcpth": 97.45, "fvt": 95.95},
+      {"cw": "CW51", "month": 12, "aoi1": 99.91, "ict": 89.23, "qcpth": 96.42, "fvt": 95.22},
+      {"cw": "CW52", "month": 12, "aoi1": null, "ict": null, "qcpth": 96.39, "fvt": 97.64},
+      {"cw": "CW53", "month": 12, "aoi1": 99.65, "ict": 80.99, "qcpth": 95.14, "fvt": 98.32}
+    ]},
+  "2025":{
+    overall:93.39,pcba:97.05,fg:98.69,
+    stations:{
+      pcba:{"AOI1(Bot)": 99.61, "QCSMT1(Bot)": 99.99, "AOI2(Top)": 99.35, "QCSMT2(Top)": 99.87, "ICT": 98.41, "QCPTH": 97.99},
+      fg:{"FVT": 98.0, "VISION": 100.0, "AUTO": 98.93, "AGING": 99.4, "PSA": 98.69}},
+    retrofitWeeks:[],
+    weekly:[
+      {"cw": "CW1", "month": 1, "aoi1": 87.01, "ict": 80.99, "qcpth": 95.14, "fvt": 98.32},
+      {"cw": "CW2", "month": 1, "aoi1": 99.79, "ict": 97.8, "qcpth": 97.8, "fvt": 98.31},
+      {"cw": "CW3", "month": 1, "aoi1": 99.77, "ict": 97.86, "qcpth": 98.29, "fvt": 98.16},
+      {"cw": "CW4", "month": 1, "aoi1": 99.71, "ict": 98.23, "qcpth": 98.27, "fvt": 98.6},
+      {"cw": "CW5", "month": 1, "aoi1": 99.74, "ict": 98.09, "qcpth": 98.01, "fvt": 97.46},
+      {"cw": "CW6", "month": 2, "aoi1": 99.04, "ict": 98.89, "qcpth": 97.22, "fvt": 98.31},
+      {"cw": "CW7", "month": 2, "aoi1": 99.75, "ict": 98.94, "qcpth": 97.98, "fvt": 98.32},
+      {"cw": "CW8", "month": 2, "aoi1": 99.74, "ict": 98.73, "qcpth": 98.25, "fvt": 98.25},
+      {"cw": "CW9", "month": 2, "aoi1": 99.72, "ict": 99.01, "qcpth": 97.48, "fvt": 98.04},
+      {"cw": "CW10", "month": 3, "aoi1": 99.83, "ict": 98.75, "qcpth": 98.33, "fvt": 98.53},
+      {"cw": "CW11", "month": 3, "aoi1": 99.71, "ict": 99.08, "qcpth": 98.25, "fvt": 97.0},
+      {"cw": "CW12", "month": 3, "aoi1": 99.5, "ict": 98.32, "qcpth": 98.81, "fvt": 96.86},
+      {"cw": "CW13", "month": 3, "aoi1": 99.74, "ict": 97.76, "qcpth": 99.08, "fvt": 97.79},
+      {"cw": "CW14", "month": 3, "aoi1": 99.34, "ict": 98.1, "qcpth": 98.67, "fvt": 98.54},
+      {"cw": "CW15", "month": 4, "aoi1": 99.39, "ict": 98.07, "qcpth": 98.01, "fvt": 97.93},
+      {"cw": "CW16", "month": 4, "aoi1": 99.44, "ict": 98.92, "qcpth": 97.96, "fvt": 97.8},
+      {"cw": "CW17", "month": 4, "aoi1": 99.62, "ict": 98.45, "qcpth": 97.89, "fvt": 98.33},
+      {"cw": "CW18", "month": 4, "aoi1": 99.4, "ict": 97.96, "qcpth": 98.48, "fvt": 98.26},
+      {"cw": "CW19", "month": 5, "aoi1": 99.31, "ict": 97.44, "qcpth": 98.72, "fvt": 98.89},
+      {"cw": "CW20", "month": 5, "aoi1": 99.8, "ict": 97.91, "qcpth": 98.43, "fvt": 98.59},
+      {"cw": "CW21", "month": 5, "aoi1": 99.73, "ict": 97.93, "qcpth": 98.25, "fvt": 98.82},
+      {"cw": "CW22", "month": 5, "aoi1": 99.74, "ict": 98.06, "qcpth": 98.67, "fvt": 98.64},
+      {"cw": "CW23", "month": 6, "aoi1": 99.71, "ict": 98.05, "qcpth": 99.26, "fvt": 98.2},
+      {"cw": "CW24", "month": 6, "aoi1": 99.73, "ict": 96.18, "qcpth": 98.82, "fvt": 98.69},
+      {"cw": "CW25", "month": 6, "aoi1": 99.58, "ict": 98.52, "qcpth": 98.75, "fvt": 98.19},
+      {"cw": "CW26", "month": 6, "aoi1": 99.73, "ict": 96.87, "qcpth": 98.12, "fvt": 97.95},
+      {"cw": "CW27", "month": 6, "aoi1": 99.64, "ict": 97.95, "qcpth": 97.89, "fvt": 97.71},
+      {"cw": "CW28", "month": 7, "aoi1": 99.53, "ict": 99.19, "qcpth": 98.97, "fvt": 97.53},
+      {"cw": "CW29", "month": 7, "aoi1": 99.75, "ict": 99.42, "qcpth": 96.78, "fvt": 98.19},
+      {"cw": "CW30", "month": 7, "aoi1": 99.85, "ict": 99.18, "qcpth": 94.44, "fvt": 96.01},
+      {"cw": "CW31", "month": 7, "aoi1": 99.74, "ict": 99.3, "qcpth": 97.39, "fvt": 98.12},
+      {"cw": "CW32", "month": 8, "aoi1": 99.8, "ict": 98.55, "qcpth": 97.87, "fvt": 98.21},
+      {"cw": "CW33", "month": 8, "aoi1": 99.79, "ict": 98.51, "qcpth": 97.59, "fvt": 97.82},
+      {"cw": "CW34", "month": 8, "aoi1": 99.76, "ict": 97.61, "qcpth": 96.84, "fvt": 97.79},
+      {"cw": "CW35", "month": 8, "aoi1": 99.84, "ict": 98.75, "qcpth": 98.29, "fvt": 98.38},
+      {"cw": "CW36", "month": 9, "aoi1": 99.67, "ict": 98.47, "qcpth": 97.82, "fvt": 98.31},
+      {"cw": "CW37", "month": 9, "aoi1": 99.75, "ict": 98.62, "qcpth": 96.96, "fvt": 98.21},
+      {"cw": "CW38", "month": 9, "aoi1": 99.68, "ict": 99.14, "qcpth": 95.8, "fvt": 97.44},
+      {"cw": "CW39", "month": 9, "aoi1": 99.11, "ict": 98.79, "qcpth": 97.13, "fvt": 98.1},
+      {"cw": "CW40", "month": 9, "aoi1": 99.25, "ict": 99.33, "qcpth": 98.91, "fvt": 97.99},
+      {"cw": "CW41", "month": 10, "aoi1": 99.66, "ict": 99.21, "qcpth": 98.54, "fvt": 98.05},
+      {"cw": "CW42", "month": 10, "aoi1": 99.61, "ict": 98.82, "qcpth": 98.67, "fvt": 97.83},
+      {"cw": "CW43", "month": 10, "aoi1": 99.74, "ict": 98.19, "qcpth": 98.09, "fvt": 97.82},
+      {"cw": "CW44", "month": 10, "aoi1": 99.78, "ict": 98.39, "qcpth": 97.78, "fvt": 98.29},
+      {"cw": "CW45", "month": 11, "aoi1": 99.78, "ict": 97.75, "qcpth": 98.28, "fvt": 97.25},
+      {"cw": "CW46", "month": 11, "aoi1": 99.69, "ict": 98.92, "qcpth": 98.97, "fvt": 98.29},
+      {"cw": "CW47", "month": 11, "aoi1": 99.57, "ict": 97.88, "qcpth": 98.07, "fvt": 98.04},
+      {"cw": "CW48", "month": 11, "aoi1": 99.71, "ict": 97.82, "qcpth": 97.62, "fvt": 97.43},
+      {"cw": "CW49", "month": 12, "aoi1": 99.56, "ict": 98.26, "qcpth": 97.51, "fvt": 97.61},
+      {"cw": "CW50", "month": 12, "aoi1": 99.46, "ict": 98.46, "qcpth": 97.96, "fvt": 98.09},
+      {"cw": "CW51", "month": 12, "aoi1": 99.77, "ict": 98.88, "qcpth": 97.43, "fvt": 97.91},
+      {"cw": "CW52", "month": 12, "aoi1": 99.68, "ict": 98.94, "qcpth": 97.93, "fvt": 96.47},
+      {"cw": "CW53", "month": 12, "aoi1": 99.44, "ict": 98.44, "qcpth": 96.31, "fvt": 96.92}
+    ]},
+  "2026":{
+    overall:87.49,pcba:97.23,fg:98.92,
+    stations:{
+      pcba:{"AOI1(Bot)": 99.65, "QCSMT1(Bot)": 99.99, "AOI2(Top)": 99.45, "QCSMT2(Top)": 99.99, "ICT": 98.4, "QCPTH": 96.09},
+      fg:{"HIPOT": 99.41, "FVT": 96.63, "VISION": 98.68, "AUTO": 99.0, "AGING": 99.28, "PSA": 98.92}},
+    retrofitWeeks:["CW7","CW8","CW9","CW10","CW11","CW12","CW13"],
+    weekly:[
+      {"cw": "CW1", "month": 1, "aoi1": 99.53, "ict": 92.58, "qcpth": 96.66, "fvt": 97.08},
+      {"cw": "CW2", "month": 1, "aoi1": 99.57, "ict": 98.66, "qcpth": 97.67, "fvt": 97.99},
+      {"cw": "CW3", "month": 1, "aoi1": 99.03, "ict": 99.04, "qcpth": 97.89, "fvt": 97.67},
+      {"cw": "CW4", "month": 1, "aoi1": 99.79, "ict": 99.07, "qcpth": 97.07, "fvt": 96.64},
+      {"cw": "CW5", "month": 1, "aoi1": 99.65, "ict": 98.52, "qcpth": 96.47, "fvt": 97.84},
+      {"cw": "CW6", "month": 2, "aoi1": 99.78, "ict": 98.15, "qcpth": 97.56, "fvt": 97.93},
+      {"cw": "CW7", "month": 2, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW8", "month": 2, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW9", "month": 2, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW10", "month": 3, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW11", "month": 3, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW12", "month": 3, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW13", "month": 3, "retrofit": true, "aoi1": null, "ict": null, "qcpth": null, "fvt": null},
+      {"cw": "CW14", "month": 3, "aoi1": 99.49, "ict": 95.88, "qcpth": 95.58, "fvt": 66.67},
+      {"cw": "CW15", "month": 4, "aoi1": 99.64, "ict": 98.04, "qcpth": 97.47, "fvt": 91.94},
+      {"cw": "CW16", "month": 4, "aoi1": 99.83, "ict": 98.46, "qcpth": 96.0, "fvt": 94.72},
+      {"cw": "CW17", "month": 4, "aoi1": 99.76, "ict": 97.81, "qcpth": 94.83, "fvt": 95.43},
+      {"cw": "CW18", "month": 4, "aoi1": 99.79, "ict": 98.77, "qcpth": 94.76, "fvt": 95.97},
+      {"cw": "CW19", "month": 5, "aoi1": 99.77, "ict": 99.44, "qcpth": 95.91, "fvt": 96.49},
+      {"cw": "CW20", "month": 5, "aoi1": 99.7, "ict": 98.65, "qcpth": 94.66, "fvt": 97.38},
+      {"cw": "CW21", "month": 5, "aoi1": 99.75, "ict": 98.9, "qcpth": 94.57, "fvt": 97.72},
+      {"cw": "CW22", "month": 5, "aoi1": 99.77, "ict": 98.74, "qcpth": 94.64, "fvt": 97.95}
+    ]}
+};
+const F='"Aptos","Calibri","Segoe UI",sans-serif';
+const COL={ict:"#D85A30",qcpth:"#BA7517",aoi1:"#0F6E56",fvt:"#185FA5",
+           "2024":"#D85A30","2025":"#BA7517","2026":"#0F6E56"};
+const MONTH_ABBR={1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",
+                  7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"};
+let curYear="2026", charts=[];
+
+function killCharts(){charts.forEach(c=>c.destroy());charts=[];}
+function fc(v){if(v==null)return"#888780";return v>=99?"#0F6E56":v>=97?"#1a1a19":v>=95?"#854F0B":"#993C1D";}
+function bc(v){if(v==null)return"#d3d1c7";return v>=99?"#1D9E75":v>=97?"#378ADD":v>=95?"#EF9F27":"#D85A30";}
+function p(v,d=2){return v!=null?v.toFixed(d)+"%":"N/A";}
+function dStr(cur,prev){
+  if(prev==null||cur==null)return"";
+  const d=cur-prev,abs=Math.abs(d).toFixed(2);
+  return d>=0
+    ?`<span style="color:#0F6E56;font-weight:700">&#9650;${abs}</span>`
+    :`<span style="color:#993C1D;font-weight:700">&#9660;${abs}</span>`;
+}
+function yRange(arr,keys){
+  const vs=[];
+  arr.forEach(w=>{if(!w.retrofit)keys.forEach(k=>{if(w[k]!=null)vs.push(w[k]);});});
+  return vs.length?{min:Math.max(0,Math.floor(Math.min(...vs)-1)),max:100}:{min:85,max:100};
+}
+function kpiClass(v,threshGreen,threshAmber){
+  return v>=threshGreen?"green":v>=threshAmber?"amber":"red";
+}
+
+/* ─── KPI ─── */
+function renderKPI(){
+  const d=DATA[curYear]||DATA["2026"];
+  let kpis;
+  if(curYear==="all"){
+    kpis=[
+      {lbl:"Overall FPY 2024",val:p(DATA["2024"].overall),delta:null,cls:"red"},
+      {lbl:"Overall FPY 2025",val:p(DATA["2025"].overall),delta:"&#9650;&nbsp;"+(DATA["2025"].overall-DATA["2024"].overall).toFixed(2)+"pp vs 2024",cls:"green"},
+      {lbl:"Overall FPY 2026 YTD",val:p(DATA["2026"].overall),delta:"&#9660;&nbsp;"+(DATA["2025"].overall-DATA["2026"].overall).toFixed(2)+"pp vs 2025",cls:"amber"},
+      {lbl:"ICT Improvement 2024&#8594;2025",val:"&#9650;"+(DATA["2025"].stations.pcba.ICT-DATA["2024"].stations.pcba.ICT).toFixed(2)+"pp",delta:"Key bottleneck improvement",cls:"green"},
+    ];
+  } else {
+    const prev=curYear==="2025"?DATA["2024"]:curYear==="2026"?DATA["2025"]:null;
+    const allSt={...d.stations.pcba,...d.stations.fg};
+    const [mn]=Object.entries(allSt).filter(e=>e[1]).sort((a,b)=>a[1]-b[1]);
+    const cls=v=>v<90?"red":v<95?"amber":"green";
+    kpis=[
+      {lbl:"Overall FPY",val:p(d.overall),delta:prev?`vs ${+curYear-1}: ${d.overall>=prev.overall?"&#9650;":"&#9660;"}${Math.abs(d.overall-prev.overall).toFixed(2)}pp`:null,cls:cls(d.overall)},
+      {lbl:"PCBA Acc. FPY",val:p(d.pcba),delta:prev?(d.pcba>=prev.pcba?"&#9650;":"&#9660;")+Math.abs(d.pcba-prev.pcba).toFixed(2)+"pp":null,cls:d.pcba>=97?"green":"amber"},
+      {lbl:"FG Acc. FPY",val:p(d.fg),delta:prev?(d.fg>=prev.fg?"&#9650;":"&#9660;")+Math.abs(d.fg-prev.fg).toFixed(2)+"pp":null,cls:d.fg>=98?"green":"amber"},
+      {lbl:"Bottleneck Process",val:mn[0]+": "+p(mn[1]),delta:"Lowest accumulated FPY",cls:"red"},
+    ];
+  }
+  document.getElementById("kpi-row").innerHTML=kpis.map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-val c-${k.cls}">${k.val}</div>
+      ${k.delta?`<div class="kpi-delta">${k.delta}</div>`:""}
+    </div>`).join("");
+}
+
+/* ─── STATION ACC CARD (gradient bar) ─── */
+function stCard(stations,title){
+  const vs=Object.values(stations).filter(Boolean);
+  const lo=vs.length?Math.max(0,Math.floor(Math.min(...vs)-1)):85;
+  return`<div class="card">
+    <div class="sec-title">${title}</div>
+    ${Object.entries(stations).filter(([,v])=>v!=null).map(([n,v])=>`
+    <div class="st-row">
+      <div class="st-name">${n}</div>
+      <div class="st-track">
+        <div class="st-fill" style="width:${Math.max(0,(v-lo)/(100-lo)*100)}%;background:linear-gradient(90deg,${bc(v)}99,${bc(v)})"></div>
+      </div>
+      <div class="st-val" style="color:${fc(v)}">${v.toFixed(2)}%</div>
+    </div>`).join("")}
+  </div>`;
+}
+
+/* ─── FPY BY PROCESS CARD ─── */
+function procCard(d,prevD){
+  const prevSt=prevD?{...prevD.stations.pcba,...prevD.stations.fg}:null;
+  const allSt={...d.stations.pcba,...d.stations.fg};
+  const minV=Math.min(...Object.values(allSt).filter(Boolean));
+  function rows(stObj){
+    return Object.entries(stObj).filter(([,v])=>v!=null).map(([name,val])=>{
+      const prev=prevSt?prevSt[name]:null;
+      const isLow=val===minV;
+      const fill=Math.max(0,(val-85)/15*100);
+      return`<div class="proc-row${isLow?" low":""}">
+        <div class="proc-name">${name}${isLow?`<span class="low-tag">LOW</span>`:""}</div>
+        <div class="proc-track"><div class="proc-fill" style="width:${fill}%;background:linear-gradient(90deg,${bc(val)}99,${bc(val)})"></div></div>
+        <div class="proc-val" style="color:${fc(val)}">${val.toFixed(2)}%</div>
+        <div class="proc-delta">${dStr(val,prev)}</div>
+      </div>`;
+    }).join("");
+  }
+  return`<div class="card" style="overflow-y:auto;max-height:420px">
+    <div class="sec-title">FPY by Process
+      ${prevD?`<span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;color:#aaa">&nbsp;&#9651;&#9661; vs prior year pp</span>`:""}
+      <span style="float:right;font-size:9px;font-weight:400;color:#bbb;letter-spacing:0;text-transform:none">scale 85–100%</span>
+    </div>
+    <div class="proc-section">&#9658; PCBA</div>${rows(d.stations.pcba)}
+    <div class="proc-section">&#9658; Final Goods (FG)</div>${rows(d.stations.fg)}
+  </div>`;
+}
+
+/* ─── SCROLLABLE WEEKLY TREND CHART ─── */
+const CW_PX = 46;
+const CH_H  = 260;
+
+function buildTrendChart(cid, weekly, retrofitWeeks, processKey, processColor){
+  // destroy any existing chart on this canvas
+  const existing = Chart.getChart(cid);
+  if(existing) existing.destroy();
+
+  const rSet   = new Set(retrofitWeeks||[]);
+  const labels = weekly.map(w=>w.cw);
+  const totalW = Math.max(700, labels.length * CW_PX);
+
+  // resize canvas
+  const canvas = document.getElementById(cid);
+  canvas.width      = totalW;
+  canvas.height     = CH_H;
+  canvas.style.width    = totalW+"px";
+  canvas.style.height   = CH_H+"px";
+  canvas.style.minWidth = totalW+"px";
+
+  // Month separator plugin
+  const monthPlugin={
+    id:"monthSep",
+    afterDraw(chart){
+      const{ctx,chartArea:ca,scales:sc}=chart;
+      if(!ca)return;
+      ctx.save();
+      let prevMonth=null;
+      weekly.forEach((w,i)=>{
+        const m=w.month;
+        if(m!==prevMonth && prevMonth!==null){
+          const x=sc.x.getPixelForValue(i-0.5);
+          ctx.beginPath();
+          ctx.strokeStyle="rgba(0,0,0,0.08)";
+          ctx.lineWidth=1; ctx.setLineDash([3,3]);
+          ctx.moveTo(x,ca.top); ctx.lineTo(x,ca.bottom); ctx.stroke();
+          ctx.fillStyle="#aaa";
+          ctx.font=`10px ${F}`;
+          ctx.textAlign="left";
+          ctx.fillText(MONTH_ABBR[m]||"", x+3, ca.top+10);
+        }
+        prevMonth=m;
+      });
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  };
+
+  // Retrofit background plugin
+  const rPlugin={
+    id:"rBg",
+    beforeDraw(chart){
+      const{ctx,chartArea:ca,scales:sc}=chart;
+      if(!ca||!rSet.size)return;
+      ctx.save();
+      const rIdx=weekly.map((w,i)=>w.retrofit?i:null).filter(i=>i!==null);
+      if(!rIdx.length){ctx.restore();return;}
+      const x0=sc.x.getPixelForValue(rIdx[0]-0.5);
+      const x1=sc.x.getPixelForValue(rIdx[rIdx.length-1]+0.5);
+      const grad=ctx.createLinearGradient(x0,0,x1,0);
+      grad.addColorStop(0,"rgba(250,238,218,0)");
+      grad.addColorStop(0.1,"rgba(250,238,218,0.7)");
+      grad.addColorStop(0.9,"rgba(250,238,218,0.7)");
+      grad.addColorStop(1,"rgba(250,238,218,0)");
+      ctx.fillStyle=grad;
+      ctx.fillRect(x0,ca.top,x1-x0,ca.bottom-ca.top);
+      ctx.strokeStyle="rgba(239,159,39,0.4)";
+      ctx.lineWidth=1; ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(x0,ca.top);ctx.lineTo(x0,ca.bottom);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x1,ca.top);ctx.lineTo(x1,ca.bottom);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle="#BA7517";
+      ctx.font=`bold 10px ${F}`;
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText("Automation Retrofit",(x0+x1)/2,ca.top+13);
+      ctx.restore();
+    }
+  };
+
+  const range = yRange(weekly,[processKey]);
+  const color = processColor;
+
+  const chart = new Chart(canvas,{
+    type:"line",
+    plugins:[rPlugin, monthPlugin],
+    data:{labels, datasets:[{
+      label: processKey.toUpperCase(),
+      data: weekly.map(w=>w.retrofit?null:w[processKey]),
+      borderColor: color,
+      backgroundColor: color+"22",
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 7,
+      pointHoverBackgroundColor: color,
+      pointHoverBorderColor:"#fff",
+      pointHoverBorderWidth: 2,
+      pointHitRadius: 16,
+      borderWidth: 2.5,
+      spanGaps: false,
+      tension: 0.3
+    }]},
+    options:{
+      responsive:false,
+      maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false, axis:"x"},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"rgba(20,20,19,0.92)",
+          titleColor:"#f0efe8", bodyColor:"#c8c7bf",
+          titleFont:{size:11,family:F,weight:"600"},
+          bodyFont:{size:11,family:F},
+          padding:12, boxPadding:5,
+          borderColor:"rgba(255,255,255,0.1)", borderWidth:1,
+          cornerRadius:8,
+          callbacks:{
+            title:arr=>{
+              if(!arr[0])return"";
+              const w=weekly[arr[0].dataIndex];
+              return w? w.cw+(w.month?`  (${MONTH_ABBR[w.month]||""})`:""): "";
+            },
+            label:ctx=>{
+              if(weekly[ctx.dataIndex]?.retrofit) return " \u2699 Automation Retrofit";
+              if(ctx.parsed.y==null) return null;
+              return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`;
+            },
+            filter:item=>item.parsed.y!==null
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{font:{size:10,family:F},maxRotation:45,autoSkip:false},
+           grid:{color:"rgba(0,0,0,0.04)"}},
+        y:{min:range.min, max:100.5,
+           ticks:{font:{size:10,family:F},callback:v=>v<=100?v+"%":""},
+           grid:{color:"rgba(0,0,0,0.06)"}}
+      }
+    }
+  });
+
+  // ── Drag-to-scroll: mouse + touch (iOS) ─────────────────────────────────
+  const wrap = canvas.parentElement; // .trend-wrap
+  let isDragging=false, startX=0, scrollStart=0;
+  canvas.style.cursor="grab";
+
+  // Mouse events
+  canvas.addEventListener("mousedown",e=>{
+    isDragging=true; startX=e.clientX; scrollStart=wrap.scrollLeft;
+    canvas.style.cursor="grabbing"; e.preventDefault();
+  });
+  window.addEventListener("mousemove",e=>{
+    if(!isDragging)return;
+    wrap.scrollLeft = scrollStart-(e.clientX-startX);
+  });
+  window.addEventListener("mouseup",()=>{
+    isDragging=false; canvas.style.cursor="grab";
+  });
+
+  // Touch events (iOS Safari)
+  canvas.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1)return;
+    isDragging=true;
+    startX=e.touches[0].clientX;
+    scrollStart=wrap.scrollLeft;
+    // don't preventDefault here so tooltip still works
+  },{passive:true});
+  canvas.addEventListener("touchmove",e=>{
+    if(!isDragging||e.touches.length!==1)return;
+    wrap.scrollLeft = scrollStart-(e.touches[0].clientX-startX);
+    e.preventDefault(); // prevent page scroll while dragging chart
+  },{passive:false});
+  canvas.addEventListener("touchend",()=>{ isDragging=false; });
+  canvas.addEventListener("touchcancel",()=>{ isDragging=false; });
+
+  charts.push(chart);
+  return chart;
+}
+
+/* ─── Process options per year ─── */
+const PROC_OPTIONS = {
+  "2024":[
+    {key:"ict",   label:"ICT",        color:"#D85A30"},
+    {key:"qcpth", label:"QCPTH",      color:"#BA7517"},
+    {key:"aoi1",  label:"AOI1(Bot)",  color:"#0F6E56"},
+    {key:"fvt",   label:"FVT",        color:"#185FA5"},
+  ],
+  "2025":[
+    {key:"ict",   label:"ICT",        color:"#D85A30"},
+    {key:"qcpth", label:"QCPTH",      color:"#BA7517"},
+    {key:"aoi1",  label:"AOI1(Bot)",  color:"#0F6E56"},
+    {key:"fvt",   label:"FVT",        color:"#185FA5"},
+  ],
+  "2026":[
+    {key:"ict",   label:"ICT",        color:"#D85A30"},
+    {key:"qcpth", label:"QCPTH",      color:"#BA7517"},
+    {key:"aoi1",  label:"AOI1(Bot)",  color:"#0F6E56"},
+    {key:"fvt",   label:"FVT",        color:"#185FA5"},
+  ]
+};
+
+/* Find worst (lowest accumulated) process key for a year */
+function worstProcessKey(yr){
+  const d=DATA[yr];
+  const candidates=[
+    {key:"ict",  val:d.stations.pcba["ICT"]},
+    {key:"qcpth",val:d.stations.pcba["QCPTH"]},
+    {key:"aoi1", val:d.stations.pcba["AOI1(Bot)"]},
+    {key:"fvt",  val:d.stations.fg["FVT"]},
+  ].filter(c=>c.val!=null);
+  if(!candidates.length)return"ict";
+  return candidates.sort((a,b)=>a.val-b.val)[0].key;
+}
+
+function renderSingle(yr){
+  const d=DATA[yr];
+  const prev=yr==="2025"?DATA["2024"]:yr==="2026"?DATA["2025"]:null;
+  const cid="tc_"+yr;
+  const hasR=(d.retrofitWeeks||[]).length>0;
+  const badge=hasR?`<span class="retrofit-badge">&#9881; Automation Retrofit (CW7&#8211;CW13)</span>`:"";
+  const totalW=Math.max(700,d.weekly.length*CW_PX);
+
+  // default = worst accumulated process
+  const defaultKey = worstProcessKey(yr);
+  const opts = PROC_OPTIONS[yr]||PROC_OPTIONS["2025"];
+
+  // worst station label for badge
+  const worstOpt = opts.find(o=>o.key===defaultKey)||opts[0];
+  const worstStName = {ict:"ICT",qcpth:"QCPTH",aoi1:"AOI1(Bot)",fvt:"FVT"}[defaultKey]||defaultKey.toUpperCase();
+  const worstVal = {ict:d.stations.pcba["ICT"],qcpth:d.stations.pcba["QCPTH"],aoi1:d.stations.pcba["AOI1(Bot)"],fvt:d.stations.fg["FVT"]}[defaultKey];
+
+  const selectOpts = opts.map(o=>`<option value="${o.key}" ${o.key===defaultKey?"selected":""}>${o.label}</option>`).join("");
+
+  document.getElementById("main-content").innerHTML=`
+    <div class="card" style="margin-bottom:12px">
+      <div class="sec-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+        Weekly FPY Trend ${badge}
+      </div>
+      <div class="proc-select-wrap" style="margin-top:8px">
+        <label>Process</label>
+        <select class="proc-select" id="proc-sel-${yr}" onchange="onProcChange('${yr}')">
+          ${selectOpts}
+        </select>
+        <span class="worst-badge" id="worst-badge-${yr}">
+          &#9660; Worst: ${worstStName} ${worstVal!=null?worstVal.toFixed(2)+"%":""}
+        </span>
+      </div>
+      <div class="trend-wrap" id="tw_${yr}">
+        <canvas id="${cid}" width="${totalW}" height="${CH_H}"
+          style="display:block;width:${totalW}px;height:${CH_H}px;min-width:${totalW}px"></canvas>
+      </div>
+      <div class="scroll-hint">&#9664;&nbsp;drag chart left/right to navigate&nbsp;&#9654;</div>
+    </div>
+    <div class="layout-main">
+      <div class="grid2" style="margin-bottom:0">
+        ${stCard(d.stations.pcba,"PCBA &#8212; Accumulated FPY by Process")}
+        ${stCard(d.stations.fg,"FG &#8212; Accumulated FPY by Process")}
+      </div>
+      ${procCard(d,prev)}
+    </div>`;
+
+  const selOpt = opts.find(o=>o.key===defaultKey)||opts[0];
+  buildTrendChart(cid, d.weekly, d.retrofitWeeks, selOpt.key, selOpt.color);
+}
+
+function onProcChange(yr){
+  const sel = document.getElementById("proc-sel-"+yr);
+  const key = sel.value;
+  const opts = PROC_OPTIONS[yr]||PROC_OPTIONS["2025"];
+  const opt  = opts.find(o=>o.key===key)||opts[0];
+  const cid  = "tc_"+yr;
+  const d    = DATA[yr];
+  buildTrendChart(cid, d.weekly, d.retrofitWeeks, opt.key, opt.color);
+}
+
+/* ─── YoY ─── */
+function renderYoY(){
+  const stGrp=["AOI1(Bot)","QCSMT1(Bot)","AOI2(Top)","QCSMT2(Top)","ICT","QCPTH","AUTO","AGING","PSA"];
+  const gv=(yr,n)=>{const a={...DATA[yr].stations.pcba,...DATA[yr].stations.fg};return a[n]||null;};
+  const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MNUM={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+
+  // Build monthly avg from weekly for YoY line charts
+  function monthlyAvg(yr,key){
+    const buckets={};
+    DATA[yr].weekly.forEach(w=>{
+      if(w.retrofit||w[key]==null)return;
+      const m=MONTH_ABBR[w.month];
+      if(!m)return;
+      if(!buckets[m])buckets[m]=[];
+      buckets[m].push(w[key]);
+    });
+    return MONTHS.map(m=>buckets[m]?+(buckets[m].reduce((a,b)=>a+b,0)/buckets[m].length).toFixed(2):null);
+  }
+
+  document.getElementById("main-content").innerHTML=`
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="card">
+        <div class="sec-title">Monthly Avg ICT FPY &#8212; Year over Year</div>
+        <div class="legend">
+          <span class="legend-item"><span class="ldot" style="background:${COL["2024"]}"></span>2024</span>
+          <span class="legend-item"><span class="ldot" style="background:${COL["2025"]}"></span>2025</span>
+          <span class="legend-item"><span class="ldot" style="background:${COL["2026"]}"></span>2026 YTD</span>
+        </div>
+        <div style="height:200px;position:relative"><canvas id="yoy_ict"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="sec-title">Monthly Avg FVT FPY &#8212; Year over Year</div>
+        <div class="legend">
+          <span class="legend-item"><span class="ldot" style="background:${COL["2024"]}"></span>2024</span>
+          <span class="legend-item"><span class="ldot" style="background:${COL["2025"]}"></span>2025</span>
+          <span class="legend-item"><span class="ldot" style="background:${COL["2026"]}"></span>2026 YTD</span>
+        </div>
+        <div style="height:200px;position:relative"><canvas id="yoy_fvt"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="sec-title">Accumulated FPY by Process &#8212; Year over Year</div>
+      <div class="legend">
+        <span class="legend-item"><span class="ldot" style="background:${COL["2024"]}"></span>2024</span>
+        <span class="legend-item"><span class="ldot" style="background:${COL["2025"]}"></span>2025</span>
+        <span class="legend-item"><span class="ldot" style="background:${COL["2026"]}"></span>2026 YTD</span>
+      </div>
+      <div style="height:230px;position:relative"><canvas id="yoy_bar"></canvas></div>
+    </div>
+    <div class="grid3">
+      ${["2024","2025","2026"].map(yr=>{const d=DATA[yr];return`
+        <div class="card">
+          <div class="sec-title">${yr} Key Metrics</div>
+          <div style="margin-bottom:12px">
+            <div class="kpi-lbl">Overall FPY</div>
+            <div style="font-size:22px;font-weight:700;color:${fc(d.overall)}">${p(d.overall)}</div>
+          </div>
+          <div class="stat-row"><span>PCBA Acc.</span><span style="font-weight:700;color:${fc(d.pcba)}">${p(d.pcba)}</span></div>
+          <div class="stat-row"><span>FG Acc.</span><span style="font-weight:700;color:${fc(d.fg)}">${p(d.fg)}</span></div>
+          <div class="stat-row"><span>ICT</span><span style="font-weight:700;color:${fc(d.stations.pcba.ICT)}">${p(d.stations.pcba.ICT)}</span></div>
+          <div class="stat-row"><span>FVT</span><span style="font-weight:700;color:${fc(d.stations.fg.FVT)}">${d.stations.fg.FVT!=null?p(d.stations.fg.FVT):"N/A"}</span></div>
+          <div class="stat-row"><span>QCPTH</span><span style="font-weight:700;color:${fc(d.stations.pcba.QCPTH)}">${p(d.stations.pcba.QCPTH)}</span></div>
+        </div>`;}).join("")}
+    </div>`;
+
+  function lineYoY(cid,key){
+    const allV=["2024","2025","2026"].flatMap(yr=>monthlyAvg(yr,key).filter(v=>v!=null));
+    const mn=allV.length?Math.max(0,Math.floor(Math.min(...allV)-1)):80;
+    const c=new Chart(document.getElementById(cid),{
+      type:"line",
+      data:{labels:MONTHS,datasets:[
+        {label:"2024",data:monthlyAvg("2024",key),borderColor:COL["2024"],backgroundColor:COL["2024"]+"18",fill:false,pointRadius:3,pointHoverRadius:5,borderWidth:2,spanGaps:false,tension:0.25},
+        {label:"2025",data:monthlyAvg("2025",key),borderColor:COL["2025"],backgroundColor:COL["2025"]+"18",fill:false,pointRadius:3,pointHoverRadius:5,borderWidth:2,borderDash:[5,3],spanGaps:false,tension:0.25},
+        {label:"2026",data:monthlyAvg("2026",key),borderColor:COL["2026"],backgroundColor:COL["2026"]+"18",fill:false,pointRadius:3,pointHoverRadius:5,borderWidth:2,borderDash:[2,3],spanGaps:false,tension:0.25},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+        plugins:{legend:{display:false},tooltip:{
+          backgroundColor:"rgba(20,20,19,0.92)",titleColor:"#f0efe8",bodyColor:"#c8c7bf",
+          titleFont:{size:11,family:F,weight:"600"},bodyFont:{size:11,family:F},
+          padding:12,boxPadding:5,cornerRadius:8,
+          callbacks:{label:ctx=>ctx.parsed.y!=null?` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`:null,
+                     filter:item=>item.parsed.y!==null}
+        }},
+        scales:{
+          x:{ticks:{font:{size:10,family:F}},grid:{color:"rgba(0,0,0,0.04)"}},
+          y:{min:mn,max:100.5,ticks:{font:{size:10,family:F},callback:v=>v<=100?v+"%":""},grid:{color:"rgba(0,0,0,0.06)"}}
+        }
+      }
+    });
+    charts.push(c);
+  }
+  lineYoY("yoy_ict","ict");
+  lineYoY("yoy_fvt","fvt");
+
+  const allV2=stGrp.flatMap(s=>["2024","2025","2026"].map(yr=>gv(yr,s))).filter(Boolean);
+  const yMin2=allV2.length?Math.max(0,Math.floor(Math.min(...allV2)-1)):85;
+  const c2=new Chart(document.getElementById("yoy_bar"),{
+    type:"bar",
+    data:{labels:stGrp,datasets:[
+      {label:"2024",data:stGrp.map(s=>gv("2024",s)),backgroundColor:COL["2024"]+"cc",borderRadius:3,borderWidth:0},
+      {label:"2025",data:stGrp.map(s=>gv("2025",s)),backgroundColor:COL["2025"]+"cc",borderRadius:3,borderWidth:0},
+      {label:"2026",data:stGrp.map(s=>gv("2026",s)),backgroundColor:COL["2026"]+"cc",borderRadius:3,borderWidth:0},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:"rgba(20,20,19,0.92)",titleColor:"#f0efe8",bodyColor:"#c8c7bf",
+        titleFont:{size:11,family:F,weight:"600"},bodyFont:{size:11,family:F},
+        padding:12,boxPadding:5,cornerRadius:8,
+        callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(2)+"%":"N/A"}`}
+      }},
+      scales:{
+        x:{ticks:{font:{size:10,family:F},autoSkip:false},grid:{color:"rgba(0,0,0,0.04)"}},
+        y:{min:yMin2,max:100,ticks:{font:{size:10,family:F},callback:v=>v+"%"},grid:{color:"rgba(0,0,0,0.06)"}}
+      }
+    }
+  });
+  charts.push(c2);
+}
+
+function setYear(yr){
+  curYear=yr;
+  document.querySelectorAll(".yr-tab").forEach(t=>{
+    const l=t.textContent.trim();
+    t.classList.toggle("active",(yr==="all"&&l==="YoY")||(l===yr));
+  });
+  render();
+}
+function render(){killCharts();renderKPI();curYear==="all"?renderYoY():renderSingle(curYear);}
+render();
+</script>
+</body>
+</html>

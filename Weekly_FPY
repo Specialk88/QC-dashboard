@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Microinverter Quality Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-page: #f5f6f8;
+    --bg-card: #ffffff;
+    --bg-secondary: #f8f9fb;
+    --border: #e8eaed;
+    --border-strong: #d1d5db;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --blue-50: #EFF6FF;
+    --blue-100: #DBEAFE;
+    --blue-400: #60A5FA;
+    --blue-600: #2563EB;
+    --blue-800: #1E40AF;
+    --red-50: #FFF5F5;
+    --red-100: #FEE2E2;
+    --red-400: #F87171;
+    --red-600: #DC2626;
+    --red-800: #991B1B;
+    --amber-50: #FFFBEB;
+    --amber-100: #FEF3C7;
+    --amber-600: #D97706;
+    --amber-800: #92400E;
+    --green-50: #F0FDF4;
+    --green-100: #DCFCE7;
+    --green-600: #16A34A;
+    --green-800: #166534;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+  }
+
+  body {
+    font-family: 'Söhne', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 24px; }
+  .header h1 {
+    font-size: clamp(20px, 4vw, 28px);
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+  .header p {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .7px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 24px 0 10px;
+  }
+
+  /* KPI Grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  /* FPY gap-to-target */
+  .fpy-progress-track {
+    height: 6px;
+    background: var(--red-100);
+    border-radius: 99px;
+    margin-top: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .fpy-progress-fill {
+    height: 100%;
+    background: #E24B4A;
+    border-radius: 99px;
+  }
+  .fpy-gap-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+  }
+  .fpy-gap-label { font-size: 11px; color: var(--red-800); font-weight: 600; }
+  .fpy-target-label { font-size: 11px; color: var(--text-tertiary); }
+
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    transition: box-shadow .15s;
+  }
+  .kpi-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.15;
+    margin-top: 4px;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 3px;
+  }
+
+  /* Risk KPI card */
+  .kpi-card.risk {
+    border-color: #FCA5A5;
+    background: var(--red-50);
+  }
+  .kpi-card.risk .kpi-label { color: var(--red-800); }
+  .kpi-card.risk .kpi-value { color: var(--red-800); }
+  .kpi-card.risk .kpi-sub { color: var(--red-600); }
+  .risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--red-100);
+    color: var(--red-800);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    margin-top: 6px;
+    letter-spacing: .2px;
+  }
+  .risk-badge::before { content: "⚠"; }
+
+  /* Tables */
+  .table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--bg-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  thead th:not(:first-child) { text-align: right; }
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  tbody td:not(:first-child) { text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg-secondary); }
+
+  /* Risk row */
+  tbody tr.risk-row td {
+    background: var(--red-50);
+    color: var(--red-800);
+    font-weight: 500;
+  }
+  tbody tr.risk-row:hover td { background: var(--red-100); }
+  tbody tr.risk-row td:first-child::after {
+    content: "  ⚠";
+    font-size: 11px;
+    opacity: .8;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .3px;
+  }
+  .badge-risk { background: var(--red-100); color: var(--red-800); }
+  .badge-watch { background: var(--amber-100); color: var(--amber-800); }
+  .badge-ok { background: var(--green-100); color: var(--green-800); }
+
+  /* Two-col grid for tables */
+  .table-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  /* Pareto */
+  .pareto-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+  }
+
+  .pareto-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+  }
+  .pareto-card.risk-card { border-color: #FCA5A5; }
+
+  .pareto-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pareto-sub {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-bottom: 14px;
+  }
+  .chart-wrap { position: relative; width: 100%; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-line {
+    width: 18px; height: 2px;
+    flex-shrink: 0;
+  }
+  .legend-dash {
+    width: 18px; height: 0;
+    border-top: 2px dashed #888;
+    flex-shrink: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .kpi-value { font-size: 26px; }
+    .pareto-grid, .table-grid { grid-template-columns: 1fr; }
+    body { padding: 14px 12px 32px; }
+    thead th, tbody td { padding: 8px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Microinverter Quality Dashboard</h1>
+    <p>Weekly production report</p>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="section-label">Key Metrics</div>
+  <div class="kpi-grid">
+    <div class="kpi-card risk">
+      <div class="kpi-label">Overall FPY</div>
+      <div class="kpi-value">86.29%</div>
+      <div class="fpy-progress-track">
+        <div class="fpy-progress-fill" style="width:89.5%"></div>
+      </div>
+      <div class="fpy-gap-row">
+        <span class="fpy-gap-label">▼ -10.11%p vs target</span>
+        <span class="fpy-target-label">Target 96.40%</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">PCBA FPY</div>
+      <div class="kpi-value">87.75%</div>
+      <div class="kpi-sub">Accumulated yield</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">UNIT FPY</div>
+      <div class="kpi-value">98.34%</div>
+      <div class="kpi-sub">Accumulated yield</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Weekly Output</div>
+      <div class="kpi-value">17,472</div>
+      <div class="kpi-sub">Finished units</div>
+    </div>
+    <div class="kpi-card risk">
+      <div class="kpi-label">⚠ Bottleneck</div>
+      <div class="kpi-value">QCPTH1</div>
+      <div class="risk-badge">FPY 93.88% — Lowest in line</div>
+    </div>
+  </div>
+
+  <!-- PCBA + UNIT Summary -->
+  <div class="section-label">Process Summary</div>
+  <div class="table-grid">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">MI PCBA</div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Process</th><th>Input</th><th>Fail</th><th>Defect%</th><th>FPY</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>AOI1</td><td>16,480</td><td>49</td><td>0.30%</td><td>99.70%</td></tr>
+            <tr><td>QCSMT1</td><td>16,476</td><td>2</td><td>0.01%</td><td>99.99%</td></tr>
+            <tr><td>AOI2</td><td>16,568</td><td>107</td><td>0.65%</td><td>99.35%</td></tr>
+            <tr><td>QCSMT2</td><td>16,517</td><td>0</td><td>0.00%</td><td>100.00%</td></tr>
+            <tr><td>ICT</td><td>17,855</td><td>200</td><td>1.12%</td><td>98.88%</td></tr>
+            <tr class="risk-row"><td>QCPTH1</td><td>17,265</td><td>1,057</td><td>6.12%</td><td>93.88%</td></tr>
+            <tr><td>Hipot</td><td>16,574</td><td>105</td><td>0.63%</td><td>99.37%</td></tr>
+            <tr><td>FVT</td><td>16,559</td><td>305</td><td>1.84%</td><td>98.16%</td></tr>
+            <tr><td>Vision</td><td>1,256</td><td>27</td><td>2.15%</td><td>97.85%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">MI UNIT</div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Process</th><th>Input</th><th>Fail</th><th>Defect%</th><th>FPY</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>FVTAUTO-ASSEMBLY2</td><td>17,513</td><td>79</td><td>0.45%</td><td>99.55%</td></tr>
+            <tr><td>Aging</td><td>17,538</td><td>176</td><td>1.00%</td><td>99.00%</td></tr>
+            <tr><td>QAPSA</td><td>17,472</td><td>37</td><td>0.21%</td><td>99.79%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top 5 Tables -->
+  <div class="section-label">Top 5 Analysis</div>
+  <div class="table-grid">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">By Defect Rate</div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Process</th><th>Input</th><th>Fail</th><th>Defect%</th><th>FPY</th></tr>
+          </thead>
+          <tbody>
+            <tr class="risk-row"><td>QCPTH1</td><td>17,265</td><td>1,057</td><td>6.12%</td><td>93.88%</td></tr>
+            <tr><td>Vision</td><td>1,256</td><td>27</td><td>2.15%</td><td>97.85%</td></tr>
+            <tr><td>FVT</td><td>16,559</td><td>305</td><td>1.84%</td><td>98.16%</td></tr>
+            <tr><td>ICT</td><td>17,855</td><td>200</td><td>1.12%</td><td>98.88%</td></tr>
+            <tr><td>Aging</td><td>17,538</td><td>176</td><td>1.00%</td><td>99.00%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">By Fail Qty + Risk Level</div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Process</th><th>Input</th><th>Fail</th><th>Defect%</th><th>Risk</th></tr>
+          </thead>
+          <tbody>
+            <tr class="risk-row"><td>QCPTH1</td><td>17,265</td><td>1,057</td><td>6.12%</td><td><span class="badge badge-risk">RISK</span></td></tr>
+            <tr><td>FVT</td><td>16,559</td><td>305</td><td>1.84%</td><td><span class="badge badge-watch">WATCH</span></td></tr>
+            <tr><td>ICT</td><td>17,855</td><td>200</td><td>1.12%</td><td><span class="badge badge-watch">WATCH</span></td></tr>
+            <tr><td>Aging</td><td>17,538</td><td>176</td><td>1.00%</td><td><span class="badge badge-ok">OK</span></td></tr>
+            <tr><td>AOI2</td><td>16,568</td><td>107</td><td>0.65%</td><td><span class="badge badge-ok">OK</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pareto Charts -->
+  <div class="section-label">Pareto Analysis</div>
+  <div class="pareto-grid">
+
+    <div class="pareto-card risk-card">
+      <div class="pareto-title">
+        QCPTH1
+        <span class="badge badge-risk">RISK</span>
+      </div>
+      <div class="pareto-sub">Top defect analysis · Total fails: 1,057</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="c_qcpth1" role="img" aria-label="Pareto chart QCPTH1. Top: Misinserted 572 (54.12%).">QCPTH1 defects: Misinserted 572, Insuff solder 206, Missing 164, No lead protrusion 43, Excess solder 34, Damaged 18, Wrong Part 13, Others 7.</canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:#60A5FA"></span>Defect Qty</div>
+        <div class="legend-item"><span class="legend-line" style="background:#E24B4A"></span>Cum %</div>
+        <div class="legend-item"><span class="legend-dash"></span>80% line</div>
+      </div>
+    </div>
+
+    <div class="pareto-card">
+      <div class="pareto-title">FVT</div>
+      <div class="pareto-sub">Top defect analysis · Total fails: 305</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="c_fvt" role="img" aria-label="Pareto chart FVT. Top: Contact problem 141 (53.21%).">FVT defects: Contact problem 141, Tester defect 80, Missing 10, Damaged 8, Electrically Defective 8, Operator Error 4, Others 54.</canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:#60A5FA"></span>Defect Qty</div>
+        <div class="legend-item"><span class="legend-line" style="background:#E24B4A"></span>Cum %</div>
+        <div class="legend-item"><span class="legend-dash"></span>80% line</div>
+      </div>
+    </div>
+
+    <div class="pareto-card">
+      <div class="pareto-title">ICT</div>
+      <div class="pareto-sub">Top defect analysis · Total fails: 99</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="c_ict" role="img" aria-label="Pareto chart ICT. Top: Tester defect 76 (76.77%).">ICT defects: Tester defect 76, Insuff solder 9, Contact problem 8, Lifted lead 4, No analysis 2.</canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:#60A5FA"></span>Defect Qty</div>
+        <div class="legend-item"><span class="legend-line" style="background:#E24B4A"></span>Cum %</div>
+        <div class="legend-item"><span class="legend-dash"></span>80% line</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function makePareto(id, labels, qty, cum) {
+  const n = labels.length;
+  const ctx = document.getElementById(id);
+  new Chart(ctx, {
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Defect Qty',
+          data: qty,
+          backgroundColor: '#BFDBFE',
+          borderColor: '#3B82F6',
+          borderWidth: 1,
+          yAxisID: 'y',
+          order: 2
+        },
+        {
+          type: 'line',
+          label: 'Cum %',
+          data: cum,
+          borderColor: '#E24B4A',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#E24B4A',
+          yAxisID: 'y1',
+          order: 1
+        },
+        {
+          type: 'line',
+          label: '80% line',
+          data: Array(n).fill(80),
+          borderColor: '#9CA3AF',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          yAxisID: 'y1',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          ticks: {
+            font: { size: 10, family: 'ui-sans-serif, system-ui, -apple-system, sans-serif' },
+            maxRotation: 35,
+            autoSkip: false,
+            color: '#6B7280'
+          },
+          grid: { display: false }
+        },
+        y: {
+          position: 'left',
+          beginAtZero: true,
+          ticks: {
+            font: { size: 10 },
+            color: '#6B7280'
+          },
+          grid: { color: 'rgba(0,0,0,.06)' }
+        },
+        y1: {
+          position: 'right',
+          min: 0,
+          max: 100,
+          ticks: {
+            font: { size: 10 },
+            color: '#6B7280',
+            callback: v => v + '%'
+          },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+makePareto(
+  'c_qcpth1',
+  ['Misinserted', 'Insuff solder', 'Missing', 'No lead protrusion', 'Excess solder', 'Damaged', 'Wrong Part', 'Others'],
+  [572, 206, 164, 43, 34, 18, 13, 7],
+  [54.12, 73.60, 89.12, 93.19, 96.40, 98.11, 99.34, 100.0]
+);
+
+makePareto(
+  'c_fvt',
+  ['Contact problem', 'Tester defect', 'Missing', 'Damaged', 'Electrically Def.', 'Operator Error', 'Others'],
+  [141, 80, 10, 8, 8, 4, 54],
+  [53.21, 83.40, 87.17, 90.19, 93.21, 94.72, 100.0]
+);
+
+makePareto(
+  'c_ict',
+  ['Tester defect', 'Insuff solder', 'Contact problem', 'Lifted lead', 'No analysis'],
+  [76, 9, 8, 4, 2],
+  [76.77, 85.86, 93.94, 97.98, 100.0]
+);
+</script>
+</body>
+</html>

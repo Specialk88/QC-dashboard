@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Microinverter Quality Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0e1a; --surface:#0f1629; --surface2:#151d35; --border:#1e2d50;
+    --blue:#3b82f6; --cyan:#06b6d4; --amber:#f59e0b; --red:#ef4444; --green:#10b981;
+    --tp:#e2e8f0; --ts:#64748b;
+    --mono:'IBM Plex Mono','Courier New',monospace;
+    --sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:var(--bg);color:var(--tp);font-family:var(--sans);
+    min-height:100vh;min-height:-webkit-fill-available;
+    padding:20px 16px;
+    padding-top:max(20px,env(safe-area-inset-top));
+    padding-bottom:max(20px,env(safe-area-inset-bottom));
+    padding-left:max(16px,env(safe-area-inset-left));
+    padding-right:max(16px,env(safe-area-inset-right));
+    overflow-x:hidden;
+  }
+  .container{max-width:1800px;margin:auto;}
+
+  /* HEADER */
+  .header{
+    display:-webkit-flex;display:flex;
+    -webkit-align-items:flex-end;align-items:flex-end;
+    -webkit-justify-content:space-between;justify-content:space-between;
+    -webkit-flex-wrap:wrap;flex-wrap:wrap;
+    gap:12px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border);
+  }
+  .eyebrow{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;}
+  .htitle{font-size:clamp(20px,4vw,30px);font-weight:700;color:var(--tp);letter-spacing:-0.5px;}
+  .hright{font-family:var(--mono);font-size:11px;color:var(--ts);text-align:right;line-height:1.7;}
+  .hright span{color:var(--cyan);}
+
+  /* SECTION LABEL */
+  .slabel{font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);margin:24px 0 12px;}
+
+  /* KPI */
+  .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:4px;}
+  @media(min-width:640px){.kpi-grid{grid-template-columns:repeat(4,1fr);}}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 16px;position:relative;overflow:hidden;}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+  .kpi.b::before{background:var(--blue);} .kpi.g::before{background:var(--green);} .kpi.r::before{background:var(--red);}
+  .klabel{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--ts);margin-bottom:10px;}
+  .kval{font-family:var(--mono);font-size:clamp(22px,5vw,38px);font-weight:700;line-height:1;color:var(--tp);}
+  .kpi.g .kval{color:var(--green);} .kpi.r .kval{color:var(--red);}
+  .ksub{font-size:11px;color:var(--ts);margin-top:7px;font-family:var(--mono);}
+
+  /* TWO COL */
+  .two{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:4px;}
+  @media(min-width:768px){.two{grid-template-columns:1fr 1fr;}}
+
+  /* TABLE CARD */
+  .tcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .thead2{
+    padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);
+    display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:10px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);-webkit-flex-shrink:0;flex-shrink:0;}
+  .ttitle{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--tp);letter-spacing:1px;text-transform:uppercase;}
+  .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table{width:100%;border-collapse:collapse;min-width:320px;}
+  thead th{padding:9px 14px;text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--ts);background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;}
+  thead th:not(:first-child){text-align:right;}
+  tbody td{padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--tp);border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody td:not(:first-child){text-align:right;}
+  .pn{font-weight:600;} .qv{color:#94a3b8;}
+  .rl{color:var(--green);} .rm{color:var(--amber);} .rh{color:var(--red);font-weight:700;}
+  .rcell{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:flex-end;justify-content:flex-end;gap:8px;}
+  .rbw{width:52px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;-webkit-flex-shrink:0;flex-shrink:0;}
+  .rbf{height:100%;border-radius:2px;}
+  .rank{display:-webkit-inline-flex;display:inline-flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;width:20px;height:20px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:700;margin-right:6px;-webkit-flex-shrink:0;flex-shrink:0;}
+  .r1{background:rgba(239,68,68,.2);color:var(--red);}
+  .r2{background:rgba(245,158,11,.2);color:var(--amber);}
+  .r3{background:rgba(59,130,246,.2);color:var(--blue);}
+  .r4,.r5{background:rgba(100,116,139,.2);color:var(--ts);}
+
+  /* PARETO */
+  .pgrid{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media(min-width:900px){.pgrid{grid-template-columns:repeat(2,1fr);}}
+  @media(min-width:1400px){.pgrid{grid-template-columns:repeat(3,1fr);}}
+  .pcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .phead{
+    padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);
+    display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;
+    -webkit-justify-content:space-between;justify-content:space-between;
+    -webkit-flex-wrap:wrap;flex-wrap:wrap;gap:8px;
+  }
+  .ptitle{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--tp);letter-spacing:1px;}
+  .pbadge{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;letter-spacing:1px;white-space:nowrap;}
+  .br{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+  .bb{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3);}
+  .bc{background:rgba(6,182,212,.15);color:var(--cyan);border:1px solid rgba(6,182,212,.3);}
+  .cwrap{padding:16px;height:320px;position:relative;}
+  canvas{display:block;}
+  ::-webkit-scrollbar{width:4px;height:4px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div>
+      <div class="eyebrow">QUALITY MONITORING SYSTEM</div>
+      <div class="htitle">Microinverter FPY Dashboard</div>
+    </div>
+    <div class="hright">PRODUCT LINE &nbsp;/&nbsp; <span>MI PCBA + MI UNIT</span><br>DATA SCOPE &nbsp;/&nbsp; <span>CURRENT PERIOD</span></div>
+  </div>
+
+  <div class="slabel">&#9658; KEY PERFORMANCE INDICATORS</div>
+  <div class="kpi-grid">
+    <div class="kpi b"><div class="klabel">Total Input</div><div class="kval">24,405</div><div class="ksub">units processed</div></div>
+    <div class="kpi r"><div class="klabel">Total Fail</div><div class="kval">2,144</div><div class="ksub">defective units</div></div>
+    <div class="kpi g"><div class="klabel">First Pass Yield</div><div class="kval">91.21%</div><div class="ksub">overall FPY</div></div>
+    <div class="kpi r"><div class="klabel">Worst Process</div><div class="kval" style="font-size:clamp(16px,3vw,24px);padding-top:4px;">QCPTH1</div><div class="ksub">6.12% defect rate</div></div>
+  </div>
+
+  <div class="slabel">&#9658; PROCESS SUMMARY</div>
+  <div class="two">
+    <div class="tcard">
+      <div class="thead2"><div class="dot"></div><div class="ttitle">MI PCBA</div></div>
+      <div class="tscroll"><table>
+        <thead><tr><th>Process</th><th>Input Qty</th><th>Fail Qty</th><th>Defect Rate</th></tr></thead>
+        <tbody>
+          <tr><td class="pn">AOI1</td><td class="qv">16,480</td><td class="qv">49</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:4.3%;background:var(--green)"></div></div><span class="rl">0.30%</span></div></td></tr>
+          <tr><td class="pn">AOI2</td><td class="qv">16,568</td><td class="qv">107</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:9.3%;background:var(--amber)"></div></div><span class="rm">0.65%</span></div></td></tr>
+          <tr><td class="pn">FVT</td><td class="qv">16,559</td><td class="qv">305</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:26.3%;background:var(--amber)"></div></div><span class="rm">1.84%</span></div></td></tr>
+          <tr><td class="pn">Hipot</td><td class="qv">16,574</td><td class="qv">105</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:9%;background:var(--amber)"></div></div><span class="rm">0.63%</span></div></td></tr>
+          <tr><td class="pn">ICT</td><td class="qv">17,855</td><td class="qv">200</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:16%;background:var(--amber)"></div></div><span class="rm">1.12%</span></div></td></tr>
+          <tr><td class="pn">QCPTH1</td><td class="qv">17,265</td><td class="qv">1,057</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:87%;background:var(--red)"></div></div><span class="rh">6.12%</span></div></td></tr>
+          <tr><td class="pn">QCSMT1</td><td class="qv">16,476</td><td class="qv">2</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:0.2%;background:var(--green)"></div></div><span class="rl">0.01%</span></div></td></tr>
+          <tr><td class="pn">QCSMT2</td><td class="qv">16,517</td><td class="qv">0</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:0%;background:var(--green)"></div></div><span class="rl">0.00%</span></div></td></tr>
+          <tr><td class="pn">Vision</td><td class="qv">1,256</td><td class="qv">27</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:30.7%;background:var(--red)"></div></div><span class="rh">2.15%</span></div></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tcard">
+      <div class="thead2"><div class="dot" style="background:var(--blue)"></div><div class="ttitle">MI UNIT</div></div>
+      <div class="tscroll"><table>
+        <thead><tr><th>Process</th><th>Input Qty</th><th>Fail Qty</th><th>Defect Rate</th></tr></thead>
+        <tbody>
+          <tr><td class="pn">Aging</td><td class="qv">17,538</td><td class="qv">176</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:16.3%;background:var(--amber)"></div></div><span class="rm">1.00%</span></div></td></tr>
+          <tr><td class="pn">FVTAUTO-ASSEM2</td><td class="qv">17,513</td><td class="qv">79</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:6.5%;background:var(--amber)"></div></div><span class="rm">0.45%</span></div></td></tr>
+          <tr><td class="pn">QAPSA</td><td class="qv">17,472</td><td class="qv">37</td><td><div class="rcell"><div class="rbw"><div class="rbf" style="width:3%;background:var(--green)"></div></div><span class="rl">0.21%</span></div></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="slabel" style="margin-top:24px;">&#9658; TOP 5 RANKING</div>
+  <div class="two">
+    <div class="tcard">
+      <div class="thead2"><div class="dot" style="background:var(--red)"></div><div class="ttitle">Top 5 &#8212; Defect Rate</div></div>
+      <div class="tscroll"><table>
+        <thead><tr><th>#</th><th>Process</th><th>Input Qty</th><th>Fail Qty</th><th>Defect Rate</th></tr></thead>
+        <tbody>
+          <tr><td><span class="rank r1">1</span></td><td class="pn">QCPTH1</td><td class="qv">17,265</td><td class="qv">1,057</td><td><span class="rh">6.12%</span></td></tr>
+          <tr><td><span class="rank r2">2</span></td><td class="pn">Vision</td><td class="qv">1,256</td><td class="qv">27</td><td><span class="rh">2.15%</span></td></tr>
+          <tr><td><span class="rank r3">3</span></td><td class="pn">FVT</td><td class="qv">16,559</td><td class="qv">305</td><td><span class="rm">1.84%</span></td></tr>
+          <tr><td><span class="rank r4">4</span></td><td class="pn">ICT</td><td class="qv">17,855</td><td class="qv">200</td><td><span class="rm">1.12%</span></td></tr>
+          <tr><td><span class="rank r5">5</span></td><td class="pn">Aging</td><td class="qv">17,538</td><td class="qv">176</td><td><span class="rm">1.00%</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tcard">
+      <div class="thead2"><div class="dot" style="background:var(--amber)"></div><div class="ttitle">Top 5 &#8212; Failure Qty</div></div>
+      <div class="tscroll"><table>
+        <thead><tr><th>#</th><th>Process</th><th>Input Qty</th><th>Fail Qty</th><th>Defect Rate</th></tr></thead>
+        <tbody>
+          <tr><td><span class="rank r1">1</span></td><td class="pn">QCPTH1</td><td class="qv">17,265</td><td class="qv">1,057</td><td><span class="rh">6.12%</span></td></tr>
+          <tr><td><span class="rank r2">2</span></td><td class="pn">FVT</td><td class="qv">16,559</td><td class="qv">305</td><td><span class="rm">1.84%</span></td></tr>
+          <tr><td><span class="rank r3">3</span></td><td class="pn">ICT</td><td class="qv">17,855</td><td class="qv">200</td><td><span class="rm">1.12%</span></td></tr>
+          <tr><td><span class="rank r4">4</span></td><td class="pn">Aging</td><td class="qv">17,538</td><td class="qv">176</td><td><span class="rm">1.00%</span></td></tr>
+          <tr><td><span class="rank r5">5</span></td><td class="pn">AOI2</td><td class="qv">16,568</td><td class="qv">107</td><td><span class="rm">0.65%</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="slabel" style="margin-top:24px;">&#9658; PARETO ANALYSIS</div>
+  <div class="pgrid">
+    <div class="pcard">
+      <div class="phead"><div class="ptitle">QCPTH1 PARETO</div><span class="pbadge br">1,057 FAILS &#183; 6.12%</span></div>
+      <div class="cwrap"><canvas id="p1"></canvas></div>
+    </div>
+    <div class="pcard">
+      <div class="phead"><div class="ptitle">FVT PARETO</div><span class="pbadge bb">305 FAILS &#183; 1.84%</span></div>
+      <div class="cwrap"><canvas id="p2"></canvas></div>
+    </div>
+    <div class="pcard">
+      <div class="phead"><div class="ptitle">ICT PARETO</div><span class="pbadge bc">200 FAILS &#183; 1.12%</span></div>
+      <div class="cwrap"><canvas id="p3"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var gridC='#1e2d50', textC='#64748b';
+  var mf='IBM Plex Mono,Courier New,monospace';
+
+  function mkP(id,labels,counts,cumPct,barColor){
+    var el=document.getElementById(id);
+    if(!el)return;
+    new Chart(el,{
+      data:{
+        labels:labels,
+        datasets:[
+          {type:'bar',label:'Defect Qty',data:counts,backgroundColor:barColor,borderColor:'transparent',borderRadius:3,yAxisID:'y',order:2},
+          {type:'line',label:'Cum %',data:cumPct,borderColor:'#06b6d4',backgroundColor:'transparent',borderWidth:2,pointRadius:3,pointBackgroundColor:'#06b6d4',tension:0.3,yAxisID:'y1',order:1},
+          {type:'line',label:'80% Line',data:Array(labels.length).fill(80),borderColor:'#f59e0b',backgroundColor:'transparent',borderWidth:1.5,borderDash:[6,4],pointRadius:0,yAxisID:'y1',order:0}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:{duration:400},
+        plugins:{
+          legend:{labels:{color:textC,font:{family:mf,size:10},boxWidth:12,padding:10}},
+          tooltip:{backgroundColor:'#0f1629',borderColor:'#1e2d50',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8',titleFont:{family:mf,size:11},bodyFont:{family:mf,size:10}}
+        },
+        scales:{
+          x:{ticks:{color:textC,font:{family:mf,size:9},maxRotation:40,minRotation:20},grid:{color:gridC}},
+          y:{beginAtZero:true,position:'left',ticks:{color:textC,font:{family:mf,size:10}},grid:{color:gridC}},
+          y1:{beginAtZero:true,max:100,position:'right',ticks:{color:textC,font:{family:mf,size:10},callback:function(v){return v+'%';}},grid:{drawOnChartArea:false}}
+        }
+      }
+    });
+  }
+
+  mkP('p1',
+    ['Misinserted','Insuff solder','Missing','No lead protr.','Excess solder','Damaged','Wrong Part','EXP BASE MTL','Bent lead','Billboarding','INSUFF V.FILL','Misaligned','PROTRUSION','Skewed'],
+    [572,206,164,43,34,18,13,1,1,1,1,1,1,1],
+    [54.12,73.6,89.12,93.19,96.4,98.11,99.34,99.43,99.53,99.62,99.72,99.81,99.91,100.0],
+    'rgba(239,68,68,0.75)'
+  );
+  mkP('p2',
+    ['Contact prob.','Tester defect','Missing','Damaged','Elect. Defective','Op. Error','Misinserted','Misaligned','SOLDER WEB','Insuff solder','Short/Bridge','SOLDER BALLS'],
+    [141,80,10,8,8,4,3,3,3,2,2,1],
+    [53.21,83.4,87.17,90.19,93.21,94.72,95.85,96.98,98.11,98.87,99.62,100.0],
+    'rgba(59,130,246,0.75)'
+  );
+  mkP('p3',
+    ['Tester defect','Insuff solder','Contact prob.','Lifted lead','No analysis'],
+    [76,9,8,4,2],
+    [76.77,85.86,93.94,97.98,100.0],
+    'rgba(6,182,212,0.75)'
+  );
+})();
+</script>
+</body>
+</html>
